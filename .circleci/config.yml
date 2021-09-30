@@ -1,0 +1,39 @@
+version: 2.1
+
+commands:
+  hello-tab-world:
+    parameters:
+      command:
+        type: string
+        default: echo -e Hello\\tworld
+    steps:
+      - run: << parameters.command >>
+      - run:
+          name: << parameters.command >> (with MSYS tweaked)
+          command: << parameters.command >>
+          environment:
+            # 1. We know there is a problem in Cygwin's globbing logic in its C startup code (a.k.a. `winsup`). https://gist.github.com/makotom/48a044fe1c1f81ba62ac521e5ddc7709
+            # 2. The globbing can be disabled by setting `noglob` keyword to a special env var named `CYGWIN`. https://cygwin.com/cygwin-ug-net/using-cygwinenv.html
+            # 3. MSYS derives from Cygwin, but it uses its own `MSYS` env var instead. https://github.com/msys2/MSYS2-packages/blob/fd33629ef88f656b60f482bccef1e629568a6faf/msys2-runtime/0003-Rename-dll-from-cygwin-to-msys.patch#L1430-L1431
+            # 4. Bash on CircleCI's Windows builds is Git BASH, and it should be based on MSYS. https://github.com/git-for-windows/git-sdk-32
+            MSYS: noglob
+
+jobs:
+  windows:
+    machine:
+      image: windows-server-2019-vs2019:stable
+    resource_class: windows.medium
+    steps:
+      - hello-tab-world
+
+  controlled-linux:
+    docker:
+      - image: debian:bullseye-slim
+    steps:
+      - hello-tab-world
+
+workflows:
+  run:
+    jobs:
+      - windows
+      - controlled-linux
